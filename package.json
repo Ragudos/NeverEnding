@@ -1,0 +1,22 @@
+{
+    "name": "never_ending",
+    "version": "1.0.0",
+    "description": "A bullet hell game made with JavaScript using HTML5 Canvas",
+    "scripts": {
+        "test": "glob -c \"node --import tsx --test\" {tests,src}/**/*.test.{ts,js}",
+        "build": "tsc",
+        "watch": "tsc --watch",
+        "format": "prettier --write **/*.{js,ts}",
+        "format:check": "prettier --check **/*.{js,ts}"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/node": "^20.14.12",
+        "glob": "^11.0.0",
+        "prettier": "^3.3.3",
+        "tsx": "^4.16.2",
+        "typescript": "^5.5.4"
+    }
+}

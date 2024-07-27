@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "alwaysStrict": true,
+        "lib": ["DOM.Iterable", "DOM", "ESNext"],
+        "module": "ESNext",
+        "target": "ESNext",
+        "outDir": "dist",
+        "removeComments": false
+    },
+    "include": ["src/**/*"]
+}
