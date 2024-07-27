@@ -1,0 +1,8 @@
+- Collision detection for each shapes
+- Decide for renderer (use PIXI.js or make our own)
+- Path finding for mob to player position.
+- Find a way to create viewport/camera and move it accordingly.
+- Way to store different maps
+- A minimap
+- Aim where cursor is for manual aim
+- Implement auto-aim
