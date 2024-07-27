@@ -160,4 +160,4 @@ class Input {
     }
 }
 
-export {};
+export { Input };
