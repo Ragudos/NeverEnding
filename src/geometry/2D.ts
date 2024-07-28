@@ -1,4 +1,7 @@
+import { unimplemented, unreachable } from "../debug/Assert";
+
 /**
+ * Credits to:
  * @see https://github.com/OneLoneCoder/olcUTIL_Geometry2D/blob/main/olcUTIL_Geometry2D.h
  *
  * To visualize polar and cartesian coordinates interchangeably in action,
@@ -30,8 +33,10 @@ class Vector2D {
     }
 
     /**
-     * @returns magnitude of vector
+     * @returns magnitude or length of vector
      * (Can be used to normalize the vector)
+     *
+     * Pythagorean's Theorem a^2 + b^2 = c^2
      */
     magnitude(): number {
         return Math.sqrt(this.x * this.x + this.y * this.y);
@@ -329,16 +334,107 @@ abstract class Shape {
     }
 
     abstract contains(shape: Shape): boolean;
-    abstract intersects(shape: Shape): boolean;
+    abstract intersects(shape: Shape): Array<Vector2D>;
+    abstract overlaps(shape: Shape): boolean;
 }
 
 class Point extends Shape {
-    contains(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+    #containsPoint(shape: Point): boolean {
+        return (this.position.subtractBy(shape.position).magnitudeSquared() < Vector2D.epsilon)
     }
 
-    intersects(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+    #containsLine(_: Line): boolean {
+        // A point cannot contain a line.
+        return false;
+    }
+
+    #containsRectangle(_: Rectangle): boolean {
+        // A point cannot contain a rectangle
+        return false;
+    }
+
+    #containsTriangle(_: Triangle): boolean {
+        // A point cannot contain a triangle
+        return false;
+    }
+
+    #containsCircle(_: Circle): boolean {
+        // A point cannot contain a circle
+        return false;
+    }
+
+    #containsRay(_: Ray): boolean {
+        // A point cannot contain a ray
+        return false;
+    }
+
+    contains(shape: Shape): boolean {
+        if (shape.isPoint()) {
+            return this.#containsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#containsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#containsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#containsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#containsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#containsRay(shape);
+        }
+
+        unreachable();
+
+        // Satisfy typescript
+        return false;
+    }
+
+    intersects(shape: Shape): Array<Vector2D> {
+        unimplemented();
+
+        // Satisfy typescript
+        return [];
+    }
+
+    overlaps(shape: Shape): boolean {
+        if (shape.isPoint()) {
+            return this.#containsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return shape.contains(this);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#containsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#containsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#containsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#containsRay(shape);
+        }
+
+        unreachable();
+
+        // Satisfy typescript
+        return false;
     }
 
     position: Vector2D;
@@ -351,12 +447,235 @@ class Point extends Shape {
 }
 
 class Line extends Shape {
-    contains(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+    #overlapsPoint(shape: Point): boolean {
+        return this.contains(shape);
     }
 
-    intersects(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+    #overlapsLine(shape: Line): boolean {
+        const distance = (
+            (shape.end.y - shape.start.y) *
+            (this.end.x - this.start.x) -
+            (shape.end.x - shape.start.x) *
+            (this.end.y - this.start.y)
+        );
+        const unitA = (
+            (shape.end.x - shape.start.x) *
+            (this.start.y - shape.start.y) -
+            (shape.end.y - shape.start.y) *
+            (this.start.x - shape.start.x)
+        ) / distance;
+        const unitB = (
+            (this.end.x - this.start.x) *
+            (this.start.y - shape.start.y) -
+            (this.end.y - this.start.y) *
+            (this.start.x - shape.start.x)
+        ) / distance;
+
+        return  unitA >= 0 && unitA <= 1 && unitB >= 0 && unitB <= 1;
+    }
+
+    #overlapsRectangle(shape: Rectangle): boolean {
+        return shape.overlaps(this);
+    }
+
+    #overlapsTriangle(shape: Triangle): boolean {
+        return shape.overlaps(this);
+    }
+
+    #overlapsCircle(shape: Circle): boolean {
+        return shape.overlaps(this);
+    }
+
+    #overlapsRay(_: Ray): boolean {
+        // A ray cannot contain a line
+        return false;
+    }
+
+    #containsPoint(shape: Point): boolean {
+        const d = (
+            (shape.position.x - this.start.x) *
+            (this.end.y - this.start.y) -
+            (shape.position.y - this.start.y) *
+            (this.end.x - this.start.x)
+        );
+
+        if (Math.abs(d) < Vector2D.epsilon) {
+            // Point is along this Line
+            const unit = this.vector().dot(shape.position.subtractBy(this.start)) / this.vector().magnitudeSquared();
+
+            return unit >= 0.0 && unit <= 1.0;
+        }
+
+        return false;
+    }
+
+    #containsLine(shape: Line): boolean {
+        // If this Line overlaps with the other Line's start point AND other Line's end point
+        return this.overlaps(new Point(shape.start)) && this.overlaps(new Point(shape.end));
+    }
+
+    #containsRectangle(_: Rectangle): boolean {
+        // A line cannot contain a rectangle
+        return false;
+    }
+
+    #containsTriangle(_: Triangle): boolean {
+        // A line cannot contain a triangle
+        return false;
+    }
+
+    #containsCircle(_: Circle): boolean {
+        // A line cannot contain a rectangle
+        return false;
+    }
+
+    #containsRay(_: Ray): boolean {
+        // A line cannot contain a ray
+        return false;
+    }
+
+    #intersectsPoint(shape: Point): Array<Vector2D> {
+        if (this.contains(shape)) {
+            return [shape.position];
+        }
+
+        return [];
+    }
+
+    #intersectsLine(shape: Line): Array<Vector2D> {
+        const rd = this.vector().cross(shape.vector());
+
+        // Parallel or Colinear, TODO: Return two points
+        if (rd === 0) {
+            return []
+        }
+
+        const inverseRd = 1.0 / rd;
+
+        const rn = (
+            (shape.end.x - shape.start.x) *
+            (this.start.y - shape.start.y) -
+            (shape.end.y - shape.start.y) *
+            (this.start.x - shape.start.x)
+        ) * inverseRd;
+        const sn = (
+            (this.end.x - this.start.x) *
+            (this.start.y - shape.start.y) -
+            (this.end.y - this.start.y) *
+            (this.start.x - shape.start.x)
+        ) * inverseRd;
+
+        if (rn < 0.0 || rn > 1.0 || sn < 0.0 || sn > 1.0) {
+            return [];
+        }
+
+        return [this.start.addBy(rn).multiply(this.vector())];
+    }
+
+    #intersectsRectangle(shape: Rectangle): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    #intersectsTriangle(shape: Triangle): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    #intersectsCircle(shape: Circle): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    #intersectsRay(shape: Ray): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    overlaps(shape: Shape): boolean {
+        if (shape.isPoint()) {
+            return this.#overlapsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#overlapsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#overlapsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#overlapsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#overlapsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#overlapsRay(shape);
+        }
+
+        unreachable();
+        // Satisfy TypeScript
+        return false;
+    }
+
+    contains(shape: Shape): boolean {
+        if (shape.isPoint()) {
+            return this.#containsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#containsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#containsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#containsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#containsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#containsRay(shape);
+        }
+
+        unreachable();
+        // Satisfy TypeScript
+        return false;
+    }
+
+    intersects(shape: Shape): Array<Vector2D> {
+        if (shape.isPoint()) {
+            return this.#intersectsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#intersectsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#intersectsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#intersectsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#intersectsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#intersectsRay(shape);
+        }
+
+        unreachable();
+        // Satisfy TypeScript
+        return [];
     }
 
     start: Vector2D;
@@ -435,11 +754,15 @@ class Line extends Shape {
 }
 
 class Rectangle extends Shape {
+    overlaps(shape: Shape): boolean {
+        throw new Error("Method not implemented.");
+    }
+
     contains(shape: Shape): boolean {
         throw new Error("Method not implemented.");
     }
 
-    intersects(shape: Shape): boolean {
+    intersects(shape: Shape): Array<Vector2D> {
         throw new Error("Method not implemented.");
     }
 
@@ -538,11 +861,15 @@ class Rectangle extends Shape {
 }
 
 class Ray extends Shape {
+    overlaps(shape: Shape): boolean {
+        throw new Error("Method not implemented.");
+    }
+
     contains(shape: Shape): boolean {
         throw new Error("Method not implemented.");
     }
 
-    intersects(shape: Shape): boolean {
+    intersects(shape: Shape): Array<Vector2D> {
         throw new Error("Method not implemented.");
     }
 
@@ -561,11 +888,15 @@ class Ray extends Shape {
 }
 
 class Circle extends Shape {
+    overlaps(shape: Shape): boolean {
+        throw new Error("Method not implemented.");
+    }
+
     contains(shape: Shape): boolean {
         throw new Error("Method not implemented.");
     }
 
-    intersects(shape: Shape): boolean {
+    intersects(shape: Shape): Array<Vector2D> {
         throw new Error("Method not implemented.");
     }
 
@@ -593,11 +924,15 @@ class Circle extends Shape {
 }
 
 class Triangle extends Shape {
+    overlaps(shape: Shape): boolean {
+        throw new Error("Method not implemented.");
+    }
+
     contains(shape: Shape): boolean {
         throw new Error("Method not implemented.");
     }
 
-    intersects(shape: Shape): boolean {
+    intersects(shape: Shape): Array<Vector2D> {
         throw new Error("Method not implemented.");
     }
 
