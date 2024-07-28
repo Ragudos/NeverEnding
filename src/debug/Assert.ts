@@ -28,4 +28,10 @@ function unreachable(): void {
     console.error(new AssertionError("unreachable"));
 }
 
-export { AssertionError, assert, unimplemented, unreachable };
+function todo(): void {
+    debugger;
+
+    console.error(new AssertionError("to be implemented"));
+}
+
+export { AssertionError, assert, todo, unimplemented, unreachable };

@@ -1,4 +1,5 @@
-import { unimplemented, unreachable } from "../debug/Assert";
+import { todo, unimplemented, unreachable } from "../debug/Assert";
+import { minMax } from "../lib/utils";
 
 /**
  * Credits to:
@@ -12,6 +13,24 @@ class Vector2D {
      * Error margin for floating points
      */
     static epsilon: number = 0.001;
+
+    static filterDuplicateVectors(vectors: Array<Vector2D>): Array<Vector2D> {
+        return vectors.reduce((prev, currV) => {
+            for (let i = 0; i < prev.length; ++i) {
+                if (
+                    Math.abs(currV.x - prev[i].x) < Vector2D.epsilon &&
+                    Math.abs(currV.y - prev[i].y) < Vector2D.epsilon
+                ) {
+                    // Don't add `currV` to filter it out since it's a duplicate.
+                    return prev;
+                }
+            }
+
+            prev.push(currV);
+
+            return prev;
+        }, [] as Array<Vector2D>);
+    }
 
     x: number;
     y: number;
@@ -166,6 +185,13 @@ class Vector2D {
      */
     clamp(min: Vector2D, max: Vector2D): Vector2D {
         return this.max(min).min(max);
+    }
+
+    /**
+     * Return the reflection of this Vector along a given Normal
+     */
+    reflect(normal: Vector2D): Vector2D {
+        return this.subtractBy(normal.multiply(2.0 * this.dot(normal)));
     }
 
     /**
@@ -340,7 +366,10 @@ abstract class Shape {
 
 class Point extends Shape {
     #containsPoint(shape: Point): boolean {
-        return (this.position.subtractBy(shape.position).magnitudeSquared() < Vector2D.epsilon)
+        return (
+            this.position.subtractBy(shape.position).magnitudeSquared() <
+            Vector2D.epsilon
+        );
     }
 
     #containsLine(_: Line): boolean {
@@ -452,26 +481,20 @@ class Line extends Shape {
     }
 
     #overlapsLine(shape: Line): boolean {
-        const distance = (
-            (shape.end.y - shape.start.y) *
-            (this.end.x - this.start.x) -
-            (shape.end.x - shape.start.x) *
-            (this.end.y - this.start.y)
-        );
-        const unitA = (
-            (shape.end.x - shape.start.x) *
-            (this.start.y - shape.start.y) -
-            (shape.end.y - shape.start.y) *
-            (this.start.x - shape.start.x)
-        ) / distance;
-        const unitB = (
-            (this.end.x - this.start.x) *
-            (this.start.y - shape.start.y) -
-            (this.end.y - this.start.y) *
-            (this.start.x - shape.start.x)
-        ) / distance;
+        const distance =
+            (shape.end.y - shape.start.y) * (this.end.x - this.start.x) -
+            (shape.end.x - shape.start.x) * (this.end.y - this.start.y);
+        const unitA =
+            ((shape.end.x - shape.start.x) * (this.start.y - shape.start.y) -
+                (shape.end.y - shape.start.y) *
+                    (this.start.x - shape.start.x)) /
+            distance;
+        const unitB =
+            ((this.end.x - this.start.x) * (this.start.y - shape.start.y) -
+                (this.end.y - this.start.y) * (this.start.x - shape.start.x)) /
+            distance;
 
-        return  unitA >= 0 && unitA <= 1 && unitB >= 0 && unitB <= 1;
+        return unitA >= 0 && unitA <= 1 && unitB >= 0 && unitB <= 1;
     }
 
     #overlapsRectangle(shape: Rectangle): boolean {
@@ -492,16 +515,15 @@ class Line extends Shape {
     }
 
     #containsPoint(shape: Point): boolean {
-        const d = (
-            (shape.position.x - this.start.x) *
-            (this.end.y - this.start.y) -
-            (shape.position.y - this.start.y) *
-            (this.end.x - this.start.x)
-        );
+        const d =
+            (shape.position.x - this.start.x) * (this.end.y - this.start.y) -
+            (shape.position.y - this.start.y) * (this.end.x - this.start.x);
 
         if (Math.abs(d) < Vector2D.epsilon) {
             // Point is along this Line
-            const unit = this.vector().dot(shape.position.subtractBy(this.start)) / this.vector().magnitudeSquared();
+            const unit =
+                this.vector().dot(shape.position.subtractBy(this.start)) /
+                this.vector().magnitudeSquared();
 
             return unit >= 0.0 && unit <= 1.0;
         }
@@ -511,7 +533,10 @@ class Line extends Shape {
 
     #containsLine(shape: Line): boolean {
         // If this Line overlaps with the other Line's start point AND other Line's end point
-        return this.overlaps(new Point(shape.start)) && this.overlaps(new Point(shape.end));
+        return (
+            this.overlaps(new Point(shape.start)) &&
+            this.overlaps(new Point(shape.end))
+        );
     }
 
     #containsRectangle(_: Rectangle): boolean {
@@ -547,23 +572,20 @@ class Line extends Shape {
 
         // Parallel or Colinear, TODO: Return two points
         if (rd === 0) {
-            return []
+            return [];
         }
 
         const inverseRd = 1.0 / rd;
 
-        const rn = (
-            (shape.end.x - shape.start.x) *
-            (this.start.y - shape.start.y) -
-            (shape.end.y - shape.start.y) *
-            (this.start.x - shape.start.x)
-        ) * inverseRd;
-        const sn = (
-            (this.end.x - this.start.x) *
-            (this.start.y - shape.start.y) -
-            (this.end.y - this.start.y) *
-            (this.start.x - shape.start.x)
-        ) * inverseRd;
+        const rn =
+            ((shape.end.x - shape.start.x) * (this.start.y - shape.start.y) -
+                (shape.end.y - shape.start.y) *
+                    (this.start.x - shape.start.x)) *
+            inverseRd;
+        const sn =
+            ((this.end.x - this.start.x) * (this.start.y - shape.start.y) -
+                (this.end.y - this.start.y) * (this.start.x - shape.start.x)) *
+            inverseRd;
 
         if (rn < 0.0 || rn > 1.0 || sn < 0.0 || sn > 1.0) {
             return [];
@@ -754,16 +776,242 @@ class Line extends Shape {
 }
 
 class Rectangle extends Shape {
+    #overlapsPoint(shape: Point): boolean {
+        return this.contains(shape);
+    }
+
+    #overlapsLine(shape: Line): boolean {
+        return (
+            this.contains(new Point(shape.start)) ||
+            this.contains(new Point(shape.end)) ||
+            this.top().overlaps(shape) ||
+            this.bottom().overlaps(shape) ||
+            this.left().overlaps(shape) ||
+            this.right().overlaps(shape)
+        );
+    }
+
+    #overlapsRectangle(shape: Rectangle): boolean {
+        return (
+            this.position.x <= shape.position.x + shape.dimensions.x &&
+            this.position.x + this.dimensions.x >= shape.position.x &&
+            this.position.y <= shape.position.y + shape.dimensions.y &&
+            this.position.y + this.dimensions.y >= shape.position.y
+        );
+    }
+
+    #overlapsTriangle(shape: Triangle): boolean {
+        return shape.overlaps(this);
+    }
+
+    #overlapsCircle(shape: Circle): boolean {
+        return shape.overlaps(this);
+    }
+
+    #overlapsRay(shape: Ray): boolean {
+        // A ray cannot overlap with a rectangle
+        return false;
+    }
+
+    #containsPoint(shape: Point): boolean {
+        return !(
+            // If the point's position is < where the left and upper side of the
+            // rectangle is, then the point is outside the rectange
+            (
+                shape.position.x < this.position.x ||
+                shape.position.y < this.position.y ||
+                // If the point's position is > where the right and bottom side of the
+                // rectangle is, then the point is outside the rectangle
+                shape.position.x > this.position.x + this.dimensions.x ||
+                shape.position.y > this.position.y + this.dimensions.y
+            )
+        );
+    }
+
+    #containsLine(shape: Line): boolean {
+        // We just check if the rectangle contains the start and end points of the line.
+        return (
+            this.contains(new Point(shape.start)) &&
+            this.contains(new Point(shape.end))
+        );
+    }
+
+    #containsRectangle(shape: Rectangle): boolean {
+        return (
+            // The passed rectangle's left and right sides are < this rectangle's
+            shape.position.x >= this.position.x &&
+            shape.position.x + shape.dimensions.x <=
+                this.position.x + this.dimensions.x &&
+            // The passed rectangle's top and bottom sides are < this rectangle's
+            shape.position.y >= this.position.y &&
+            shape.position.y + shape.dimensions.y <=
+                this.position.y + this.dimensions.y
+        );
+    }
+
+    #containsTriangle(shape: Triangle): boolean {
+        // The rectangle contains all the lines/sides of the triangle
+        return (
+            this.contains(shape.side(0)) &&
+            this.contains(shape.side(1)) &&
+            this.contains(shape.side(2))
+        );
+    }
+
+    #containsCircle(shape: Circle): boolean {
+        return (
+            this.position.x + shape.radius <= shape.position.x &&
+            shape.position.x <=
+                this.position.x + this.dimensions.x - shape.radius &&
+            this.position.y + shape.radius <= shape.position.y &&
+            shape.position.y <=
+                this.position.y + this.dimensions.y - shape.radius
+        );
+    }
+
+    #containsRay(_: Ray): boolean {
+        // A rectangle cannot contain a ray
+        return false;
+    }
+
+    #intersectsPoint(shape: Point): Array<Vector2D> {
+        for (let i = 0; i < this.sideCount(); ++i) {
+            if (this.side(i).contains(shape)) {
+                return [shape.position];
+            }
+        }
+
+        return [];
+    }
+
+    #intersectsLine(shape: Line): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < this.sideCount(); ++i) {
+            const v = this.side(i).intersects(shape);
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsRectangle(shape: Rectangle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsTriangle(shape: Triangle): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    #intersectsCircle(shape: Circle): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    #intersectsRay(_: Ray): Array<Vector2D> {
+        // Rectangle cannot intersect with ray.
+        return [];
+    }
+
     overlaps(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+            return this.#overlapsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#overlapsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#overlapsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#overlapsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#overlapsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#overlapsRay(shape);
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return false;
     }
 
     contains(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+            return this.#containsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#containsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#containsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#containsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#containsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#containsRay(shape);
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return false;
     }
 
     intersects(shape: Shape): Array<Vector2D> {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+            return this.#intersectsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#intersectsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#intersectsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#intersectsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#intersectsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#intersectsRay(shape);
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return [];
     }
 
     position: Vector2D;
@@ -861,16 +1109,440 @@ class Rectangle extends Shape {
 }
 
 class Ray extends Shape {
+    #containsPoint(shape: Point): boolean {
+        const originToPoint = shape.position.subtractBy(this.origin);
+        const dotProduct = originToPoint.dot(this.direction);
+
+        if (dotProduct < 0) {
+            // Point is behind ray's origin
+            return false;
+        }
+
+        const projection = new Vector2D(
+            this.direction.x * dotProduct,
+            this.direction.y * dotProduct,
+        );
+
+        // Check if originToPoint lies along the ray's direction
+        const distance = Math.sqrt(
+            (projection.x - originToPoint.x) ** 2 +
+                (projection.y - originToPoint.y) ** 2,
+        );
+
+        return distance < Vector2D.epsilon;
+    }
+
+    #intersectsPoint(shape: Point): Array<Vector2D> {
+        const line = new Line(this.origin, this.origin.addBy(this.direction));
+
+        if (Math.abs(line.side(shape.position)) < Vector2D.epsilon) {
+            return [shape.position];
+        }
+
+        return [];
+    }
+
+    #intersectsLine(shape: Line): Array<Vector2D> {
+        const lineDir = shape.vector();
+        const lineToOrigin = shape.start.subtractBy(this.origin);
+        const crossProduct1 = this.direction.cross(lineDir);
+        const crossProduct2 = lineToOrigin.cross(lineDir);
+
+        if (crossProduct1 === 0) {
+            if (crossProduct2 === 0) {
+                return [this.origin]; // Co-linear
+            } else {
+                return []; // Parallel
+            }
+        }
+
+        const crossProduct3 = lineToOrigin.cross(this.direction);
+        // Distance along ray to intersection
+        const t1 = crossProduct2 / crossProduct1;
+        // Distance along line to intersection
+        const t2 = crossProduct3 / crossProduct1;
+
+        if (t1 >= 0 && t2 >= 0 && t2 <= 1) {
+            // Intersects
+            return [this.origin.addBy(this.direction).multiply(t1)];
+        }
+
+        // Intersects but is behind the ray's origin or outside of the line's bounds
+        return [];
+    }
+
+    #intersectsRectangle(shape: Rectangle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsTriangle(shape: Triangle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsCircle(shape: Circle): Array<Vector2D> {
+        const A = this.direction.magnitudeSquared();
+        const B =
+            2.0 *
+            (this.origin.dot(this.direction) -
+                shape.position.dot(this.direction));
+        const C =
+            shape.position.magnitudeSquared() +
+            this.origin.magnitudeSquared() -
+            2.0 * shape.position.x * this.origin.x -
+            2.0 * shape.position.y * this.origin.y -
+            shape.radius ** 2;
+        const D = B ** 2 - 4.0 * A * C;
+
+        if (D < 0.0) {
+            return [];
+        }
+
+        const sqrtD = Math.sqrt(D);
+        const s1 = (B * -1 + sqrtD) / (2.0 * A);
+        const s2 = (B * -1 - sqrtD) / (2.0 * A);
+
+        if (s1 < 0 && s2 < 0) {
+            return [];
+        }
+
+        if (s1 < 0) {
+            return [this.origin.addBy(this.direction.multiply(s2))];
+        }
+
+        if (s2 < 0) {
+            return [this.origin.addBy(this.direction.multiply(s1))];
+        }
+
+        const [minS, maxS] = minMax(s1, s2);
+
+        return [
+            this.origin.addBy(this.direction.multiply(minS)),
+            this.origin.addBy(this.direction.multiply(maxS)),
+        ];
+    }
+
+    #intersectsRay(shape: Ray): Array<Vector2D> {
+        const originToOrigin = shape.origin.subtractBy(this.origin);
+        const crossProduct1 = this.direction.cross(shape.direction);
+        const crossProduct2 = originToOrigin.cross(shape.direction);
+
+        if (crossProduct1 === 0) {
+            if (crossProduct2 === 0) {
+                return [this.origin]; // Co-linear
+            }
+
+            return []; // Parallel
+        }
+
+        const crossProduct3 = originToOrigin.cross(this.direction);
+        const t1 = crossProduct2 / crossProduct1; // Distance along this ray to intersection
+        const t2 = crossProduct3 / crossProduct1; // Distance along the passed ray to intersection
+
+        if (t1 >= 0 && t2 >= 0) {
+            return [this.origin.addBy(this.direction.multiply(t1))];
+        }
+
+        return []; // Intersects, but behind this ray's origin.
+    }
+
+    #collisionPoint(shape: Point): undefined | [Vector2D, Vector2D] {
+        todo();
+
+        return undefined;
+    }
+
+    #collisionLine(shape: Line): undefined | [Vector2D, Vector2D] {
+        const vIntersection = this.intersects(shape);
+
+        if (vIntersection.length !== 0) {
+            return [
+                vIntersection[0],
+                shape
+                    .vector()
+                    .perp()
+                    .normalized()
+                    .multiply(shape.side(this.origin)),
+            ];
+        }
+
+        return undefined;
+    }
+
+    #collisionRectangle(shape: Rectangle): undefined | [Vector2D, Vector2D] {
+        let closestIntersection: undefined | Vector2D;
+        let vIntersectionNormal: undefined | Vector2D;
+        let closestDistance = Infinity;
+        let bCollide = false;
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            if (v.length !== 0) {
+                bCollide = true;
+                const d = v[0].subtractBy(this.origin).magnitudeSquared();
+
+                if (d < closestDistance) {
+                    closestDistance = d;
+                    closestIntersection = v[0];
+                    vIntersectionNormal = shape
+                        .side(i)
+                        .vector()
+                        .perp()
+                        .normalized();
+                }
+            }
+        }
+
+        if (bCollide) {
+            if (closestIntersection && vIntersectionNormal) {
+                return [closestIntersection, vIntersectionNormal];
+            }
+
+            unreachable();
+        }
+
+        return undefined;
+    }
+
+    #collisionTriangle(shape: Triangle): undefined | [Vector2D, Vector2D] {
+        let closestIntersection: undefined | Vector2D;
+        let vIntersectionNormal: undefined | Vector2D;
+        let closestDistance = Infinity;
+        let bCollide = false;
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            if (v.length !== 0) {
+                bCollide = true;
+                const d = v[0].subtractBy(this.origin).magnitudeSquared();
+
+                if (d < closestDistance) {
+                    closestDistance = d;
+                    closestIntersection = v[0];
+                    vIntersectionNormal = shape
+                        .side(i)
+                        .vector()
+                        .perp()
+                        .normalized();
+                }
+            }
+        }
+
+        if (bCollide) {
+            if (closestIntersection && vIntersectionNormal) {
+                return [closestIntersection, vIntersectionNormal];
+            }
+
+            unreachable();
+        }
+
+        return undefined;
+    }
+
+    #collisionCircle(shape: Circle): undefined | [Vector2D, Vector2D] {
+        const vIntersection = this.intersects(shape);
+
+        if (vIntersection.length !== 0) {
+            return [
+                vIntersection[0],
+                vIntersection[0].subtractBy(shape.position).normalized(),
+            ];
+        }
+
+        return undefined;
+    }
+
+    #collisionRay(shape: Ray): undefined | [Vector2D, Vector2D] {
+        unimplemented();
+        return undefined;
+    }
+
+    #reflectPoint(shape: Point): undefined | Ray {
+        todo();
+
+        return undefined;
+    }
+
+    #reflectLine(shape: Line): undefined | Ray {
+        const vCollision = this.collision(shape);
+
+        if (vCollision) {
+            return new Ray(
+                vCollision[0],
+                this.direction.reflect(vCollision[1]),
+            );
+        }
+
+        return undefined;
+    }
+
+    #reflectRectangle(shape: Rectangle): undefined | Ray {
+        const vCollision = this.collision(shape);
+
+        if (vCollision) {
+            return new Ray(
+                vCollision[0],
+                this.direction.reflect(vCollision[1]),
+            );
+        }
+
+        return undefined;
+    }
+
+    #reflectTriangle(shape: Triangle): undefined | Ray {
+        const vCollision = this.collision(shape);
+
+        if (vCollision) {
+            return new Ray(
+                vCollision[0],
+                this.direction.reflect(vCollision[1]),
+            );
+        }
+
+        return undefined;
+    }
+
+    #reflectCircle(shape: Circle): undefined | Ray {
+        const vCollision = this.collision(shape);
+
+        if (vCollision) {
+            return new Ray(
+                vCollision[0],
+                this.direction.reflect(vCollision[1]),
+            );
+        }
+
+        return undefined;
+    }
+
+    #reflectRay(shape: Ray): undefined | Ray {
+        // Can't reflect a ray to a ray
+        return undefined;
+    }
+
     overlaps(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        // A ray cannot overlap with any shape, only collides (to its destination), intersects, and reflects
+        return false;
     }
 
     contains(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+            return this.#containsPoint(shape);
+        }
+
+        // A ray cannot contain any shape except a Point.
+        return false;
     }
 
     intersects(shape: Shape): Array<Vector2D> {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+            return this.#intersectsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#intersectsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#intersectsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#intersectsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#intersectsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#intersectsRay(shape);
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return [];
+    }
+
+    /**
+     * Returns collision point and collision normal of ray and shape if they collide
+     */
+    collision(shape: Shape): undefined | [Vector2D, Vector2D] {
+        if (shape.isPoint()) {
+            return this.#collisionPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#collisionLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#collisionRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#collisionTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#collisionCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#collisionRay(shape);
+        }
+
+        unreachable();
+
+        return undefined;
+    }
+
+    reflect(shape: Shape): undefined | Ray {
+        if (shape.isPoint()) {
+            return this.#reflectPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#reflectLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#reflectRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#reflectTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#reflectCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#reflectRay(shape);
+        }
+
+        unreachable();
+
+        return undefined;
     }
 
     origin: Vector2D;
@@ -889,15 +1561,78 @@ class Ray extends Shape {
 
 class Circle extends Shape {
     overlaps(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+        }
+
+        if (shape.isLine()) {
+        }
+
+        if (shape.isRectangle()) {
+        }
+
+        if (shape.isTriangle()) {
+        }
+
+        if (shape.isCircle()) {
+        }
+
+        if (shape.isRay()) {
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return false;
     }
 
     contains(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+        }
+
+        if (shape.isLine()) {
+        }
+
+        if (shape.isRectangle()) {
+        }
+
+        if (shape.isTriangle()) {
+        }
+
+        if (shape.isCircle()) {
+        }
+
+        if (shape.isRay()) {
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return false;
     }
 
     intersects(shape: Shape): Array<Vector2D> {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+        }
+
+        if (shape.isLine()) {
+        }
+
+        if (shape.isRectangle()) {
+        }
+
+        if (shape.isTriangle()) {
+        }
+
+        if (shape.isCircle()) {
+        }
+
+        if (shape.isRay()) {
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return [];
     }
 
     position: Vector2D;
@@ -925,15 +1660,78 @@ class Circle extends Shape {
 
 class Triangle extends Shape {
     overlaps(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+        }
+
+        if (shape.isLine()) {
+        }
+
+        if (shape.isRectangle()) {
+        }
+
+        if (shape.isTriangle()) {
+        }
+
+        if (shape.isCircle()) {
+        }
+
+        if (shape.isRay()) {
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return false;
     }
 
     contains(shape: Shape): boolean {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+        }
+
+        if (shape.isLine()) {
+        }
+
+        if (shape.isRectangle()) {
+        }
+
+        if (shape.isTriangle()) {
+        }
+
+        if (shape.isCircle()) {
+        }
+
+        if (shape.isRay()) {
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return false;
     }
 
     intersects(shape: Shape): Array<Vector2D> {
-        throw new Error("Method not implemented.");
+        if (shape.isPoint()) {
+        }
+
+        if (shape.isLine()) {
+        }
+
+        if (shape.isRectangle()) {
+        }
+
+        if (shape.isTriangle()) {
+        }
+
+        if (shape.isCircle()) {
+        }
+
+        if (shape.isRay()) {
+        }
+
+        unreachable();
+
+        // Satisfy TypeScript
+        return [];
     }
 
     /**
