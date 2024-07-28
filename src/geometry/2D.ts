@@ -1,5 +1,5 @@
 import { todo, unimplemented, unreachable } from "../debug/Assert";
-import { minMax } from "../lib/utils";
+import { clamp, minMax } from "../lib/utils";
 
 /**
  * Credits to:
@@ -359,12 +359,52 @@ abstract class Shape {
         return this instanceof Triangle;
     }
 
+    /**
+     * Checks if this shape contains the passed shape
+     */
     abstract contains(shape: Shape): boolean;
+    /**
+     * Returns all the points of this shape's and the passed shape's intersection points.
+     */
     abstract intersects(shape: Shape): Array<Vector2D>;
+    /**
+     * Checks if this shape overlaps with the passed shape
+     */
     abstract overlaps(shape: Shape): boolean;
+    /**
+     * Returns the closest Point (Vector) from this shape to the passed shape
+     */
+    abstract closest(shape: Shape): Vector2D;
 }
 
 class Point extends Shape {
+    #closestPoint(shape: Point): Vector2D {
+        // Since we're returning the closest point from this Point to the passed Point, we
+        // just return this point
+        return this.position;
+    }
+
+    #closestLine(shape: Line): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestRectangle(shape: Rectangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestTriangle(shape: Triangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestCircle(shape: Circle): Vector2D {
+        return shape.closest(this);
+    }
+
+    // @ts-ignore
+    #closestRay(shape: Ray): Vector2D {
+        unimplemented();
+    }
+
     #containsPoint(shape: Point): boolean {
         return (
             this.position.subtractBy(shape.position).magnitudeSquared() <
@@ -395,6 +435,35 @@ class Point extends Shape {
     #containsRay(_: Ray): boolean {
         // A point cannot contain a ray
         return false;
+    }
+
+    // @ts-ignore
+    closest(shape: Shape): Vector2D {
+        if (shape.isPoint()) {
+            return this.#closestPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#closestLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#closestRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#closestTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#closestCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#closestRay(shape);
+        }
+
+        unreachable();
     }
 
     contains(shape: Shape): boolean {
@@ -476,6 +545,42 @@ class Point extends Shape {
 }
 
 class Line extends Shape {
+    #closestPoint(shape: Point): Vector2D {
+        const len = this.vector();
+        const unitDis = clamp(
+            len.dot(shape.position.subtractBy(this.start)) /
+                len.magnitudeSquared(),
+            0.0,
+            1.0,
+        );
+
+        return this.start.addBy(len.multiply(unitDis));
+    }
+
+    // @ts-ignore
+    #closestLine(shape: Line): Vector2D {
+        unimplemented();
+    }
+
+    #closestRectangle(shape: Rectangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestTriangle(shape: Triangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestCircle(shape: Circle): Vector2D {
+        const p = shape.closest(this);
+
+        return this.closest(new Point(p));
+    }
+
+    // @ts-ignore
+    #closestRay(shape: Ray): Vector2D {
+        unimplemented();
+    }
+
     #overlapsPoint(shape: Point): boolean {
         return this.contains(shape);
     }
@@ -640,6 +745,35 @@ class Line extends Shape {
         return false;
     }
 
+    // @ts-ignore
+    closest(shape: Shape): Vector2D {
+        if (shape.isPoint()) {
+            return this.#closestPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#closestLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#closestRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#closestTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#closestCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#closestRay(shape);
+        }
+
+        unreachable();
+    }
+
     contains(shape: Shape): boolean {
         if (shape.isPoint()) {
             return this.#containsPoint(shape);
@@ -776,6 +910,63 @@ class Line extends Shape {
 }
 
 class Rectangle extends Shape {
+    #closestPoint(shape: Point): Vector2D {
+        const c1 = this.top().closest(shape);
+        const c2 = this.bottom().closest(shape);
+        const c3 = this.left().closest(shape);
+        const c4 = this.right().closest(shape);
+
+        const d1 = c1.subtractBy(shape.position).magnitudeSquared();
+        const d2 = c2.subtractBy(shape.position).magnitudeSquared();
+        const d3 = c3.subtractBy(shape.position).magnitudeSquared();
+        const d4 = c4.subtractBy(shape.position).magnitudeSquared();
+
+        let dmin = d1;
+        let cmin = c1;
+
+        if (d2 < dmin) {
+            dmin = d2;
+            cmin = c2;
+        }
+
+        if (d3 < dmin) {
+            dmin = d3;
+            cmin = c3;
+        }
+
+        if (d4 < dmin) {
+            dmin = d4;
+            cmin = c4;
+        }
+
+        return cmin;
+    }
+
+    // @ts-ignore
+    #closestLine(shape: Line): Vector2D {
+        unimplemented();
+    }
+
+    // @ts-ignore
+    #closestRectangle(shape: Rectangle): Vector2D {
+        unimplemented();
+    }
+
+    // @ts-ignore
+    #closestTriangle(shape: Triangle): Vector2D {
+        unimplemented();
+    }
+
+    // @ts-ignore
+    #closestCircle(shape: Circle): Vector2D {
+        unimplemented();
+    }
+
+    // @ts-ignore
+    #closestRay(shape: Ray): Vector2D {
+        unimplemented();
+    }
+
     #overlapsPoint(shape: Point): boolean {
         return this.contains(shape);
     }
@@ -919,6 +1110,35 @@ class Rectangle extends Shape {
     #intersectsRay(_: Ray): Array<Vector2D> {
         // Rectangle cannot intersect with ray.
         return [];
+    }
+
+    // @ts-ignore
+    closest(shape: Shape): Vector2D {
+        if (shape.isPoint()) {
+            return this.#closestPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#closestLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#closestRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#closestTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#closestCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#closestRay(shape);
+        }
+
+        unreachable();
     }
 
     overlaps(shape: Shape): boolean {
@@ -1125,8 +1345,8 @@ class Ray extends Shape {
 
         // Check if originToPoint lies along the ray's direction
         const distance = Math.sqrt(
-            (projection.x - originToPoint.x) ** 2 +
-                (projection.y - originToPoint.y) ** 2,
+            Math.pow(projection.x - originToPoint.x, 2) +
+                Math.pow(projection.y - originToPoint.y, 2),
         );
 
         return distance < Vector2D.epsilon;
@@ -1206,8 +1426,8 @@ class Ray extends Shape {
             this.origin.magnitudeSquared() -
             2.0 * shape.position.x * this.origin.x -
             2.0 * shape.position.y * this.origin.y -
-            shape.radius ** 2;
-        const D = B ** 2 - 4.0 * A * C;
+            Math.pow(shape.radius, 2);
+        const D = Math.pow(B, 2) - 4.0 * A * C;
 
         if (D < 0.0) {
             return [];
@@ -1437,8 +1657,13 @@ class Ray extends Shape {
         return undefined;
     }
 
+    // @ts-ignore
+    closest(shape: Shape): Vector2D {
+        unimplemented();
+    }
+
     overlaps(shape: Shape): boolean {
-        // A ray cannot overlap with any shape, only collides (to its destination), intersects, and reflects
+        // A ray cannot overlap with any shape, only collides (to its destination), intersects, projects, and reflects
         return false;
     }
 
@@ -1560,23 +1785,332 @@ class Ray extends Shape {
 }
 
 class Circle extends Shape {
-    overlaps(shape: Shape): boolean {
+    #closestPoint(shape: Point): Vector2D {
+        return this.position.addBy(
+            shape.position
+                .subtractBy(this.position)
+                .normalized()
+                .multiply(this.radius),
+        );
+    }
+
+    #closestLine(shape: Line): Vector2D {
+        const p1 = shape.closest(new Point(this.position));
+
+        return this.position.addBy(
+            p1.subtractBy(this.position).normalized().multiply(this.radius),
+        );
+    }
+
+    #closestRectangle(shape: Rectangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestTriangle(shape: Triangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    #closestCircle(shape: Circle): Vector2D {
+        return this.closest(new Point(shape.position));
+    }
+
+    // @ts-ignore
+    #closestRay(shape: Ray): Vector2D {
+        unimplemented();
+    }
+
+    #overlapsPoint(shape: Point): boolean {
+        return this.contains(shape);
+    }
+
+    #overlapsLine(shape: Line): boolean {
+        const closest = shape.closest(new Point(this.position));
+
+        return (
+            this.position.subtractBy(closest).magnitudeSquared() <=
+            this.radius * this.radius
+        );
+    }
+
+    #overlapsRectangle(shape: Rectangle): boolean {
+        const overlap = new Vector2D(
+            clamp(
+                this.position.x,
+                shape.position.x,
+                shape.position.x + shape.dimensions.x,
+            ),
+            clamp(
+                this.position.y,
+                shape.position.y,
+                shape.position.y + shape.dimensions.y,
+            ),
+        )
+            .subtractBy(this.position)
+            .magnitudeSquared();
+
+        return overlap - Math.pow(this.radius, 2) < 0;
+    }
+
+    #overlapsTriangle(shape: Triangle): boolean {
+        return shape.overlaps(this);
+    }
+
+    #overlapsCircle(shape: Circle): boolean {
+        return (
+            this.position.subtractBy(shape.position).magnitudeSquared() <=
+            Math.pow(this.radius + shape.radius, 2)
+        );
+    }
+
+    #overlapsRay(shape: Ray): boolean {
+        // A circle cannot overlap a ray
+        return false;
+    }
+
+    #containsPoint(shape: Point): boolean {
+        return (
+            this.position.subtractBy(shape.position).magnitudeSquared() <=
+            Math.pow(this.radius, 2)
+        );
+    }
+
+    #containsLine(shape: Line): boolean {
+        return (
+            this.contains(new Point(shape.start)) &&
+            this.contains(new Point(shape.end))
+        );
+    }
+
+    #containsRectangle(shape: Rectangle): boolean {
+        return (
+            this.contains(new Point(shape.position)) &&
+            this.contains(
+                new Point(
+                    new Vector2D(
+                        shape.position.x + shape.position.y,
+                        shape.position.y,
+                    ),
+                ),
+            ) &&
+            this.contains(
+                new Point(
+                    new Vector2D(
+                        shape.position.x,
+                        shape.position.y + shape.dimensions.y,
+                    ),
+                ),
+            ) &&
+            this.contains(new Point(shape.position.addBy(shape.dimensions)))
+        );
+    }
+
+    #containsTriangle(shape: Triangle): boolean {
+        return (
+            this.contains(new Point(shape.position[0])) &&
+            this.contains(new Point(shape.position[1])) &&
+            this.contains(new Point(shape.position[2]))
+        );
+    }
+
+    #containsCircle(shape: Circle): boolean {
+        return (
+            Math.sqrt(
+                Math.pow(shape.position.x - this.position.x, 2) +
+                    Math.pow(shape.position.y - this.position.y, 2),
+            ) +
+                shape.radius <=
+            this.radius
+        );
+    }
+
+    #containsRay(shape: Ray): boolean {
+        // A circle cannot contain a ray
+        return false;
+    }
+
+    #intersectsPoint(shape: Point): Array<Vector2D> {
+        if (
+            Math.abs(
+                shape.position.subtractBy(this.position).magnitudeSquared() -
+                    Math.pow(this.radius, 2),
+            ) <= Vector2D.epsilon
+        ) {
+            return [shape.position];
+        }
+
+        return [];
+    }
+
+    #intersectsLine(shape: Line): Array<Vector2D> {
+        const closestPoint = shape.closest(new Point(this.position));
+
+        if (!this.overlaps(new Point(closestPoint))) {
+            // Circle is too far away
+            return [];
+        }
+
+        const d = shape.vector();
+        const unitLine =
+            d.dot(this.position.subtractBy(shape.start)) / d.magnitudeSquared();
+        const closestPointToLine = shape.start.addBy(unitLine).multiply(d);
+        const distToLine = this.position
+            .subtractBy(closestPointToLine)
+            .magnitudeSquared();
+
+        if (
+            Math.abs(distToLine - Math.pow(this.radius, 2)) < Vector2D.epsilon
+        ) {
+            // Circle "kisses" (barely touches) the line
+            return [closestPointToLine];
+        }
+
+        // Circle intersects the line
+        const length = Math.sqrt(Math.pow(this.radius, 2) - distToLine);
+        const p1 = closestPointToLine
+            .addBy(shape.vector().normalized())
+            .multiply(length);
+        const p2 = closestPointToLine
+            .subtractBy(shape.vector().normalized())
+            .multiply(length);
+
+        const intersections = [];
+
+        if (
+            p1.subtractBy(shape.closest(new Point(p1))).magnitudeSquared() <
+            Math.pow(Vector2D.epsilon, 2)
+        ) {
+            intersections.push(p1);
+        }
+
+        if (
+            p2.subtractBy(shape.closest(new Point(p2))).magnitudeSquared() <
+            Math.pow(Vector2D.epsilon, 2)
+        ) {
+            intersections.push(p2);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsRectangle(shape: Rectangle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            intersections.push(...v);
+        }
+
+        return intersections;
+    }
+
+    #intersectsTriangle(shape: Triangle): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    #intersectsCircle(shape: Circle): Array<Vector2D> {
+        if (this.position.eq(shape.position)) {
+            // Either circles contains either the other or vice versa, or are
+            // identical. If so, they'd be sharing all points and there's no good way to represent them in return values;
+            return [];
+        }
+
+        const between = shape.position.subtractBy(this.position);
+        const dist2 = between.magnitudeSquared();
+        const radiusSum = this.radius + shape.radius;
+
+        if (dist2 > Math.pow(radiusSum, 2)) {
+            // Circles are too far apart from each other.
+            return [];
+        }
+
+        if (this.contains(shape) || shape.contains(this)) {
+            // If either circles contain the other or vice versa, then no points would be intersecting.
+            return [];
+        }
+
+        if (dist2 === radiusSum) {
+            return [
+                this.position.addBy(between.normalized()).multiply(this.radius),
+            ]; // Circles are intersecting at one point // Circles are intersecting at one point
+        }
+
+        const dist = Math.sqrt(dist2);
+        const ccDist =
+            (dist2 + Math.pow(this.radius, 2) - Math.pow(shape.radius, 2)) /
+            (2 * dist);
+        const chordCenter = this.position
+            .addBy(between.normalized())
+            .multiply(ccDist);
+        const halfChord = between
+            .normalized()
+            .perp()
+            .multiply(
+                Math.sqrt(Math.pow(this.radius, 2) - Math.pow(ccDist, 2)),
+            );
+
+        return [
+            chordCenter.addBy(halfChord),
+            chordCenter.subtractBy(halfChord),
+        ];
+    }
+
+    #intersectsRay(shape: Ray): Array<Vector2D> {
+        return shape.intersects(this);
+    }
+
+    // @ts-ignore
+    closest(shape: Shape): Vector2D {
         if (shape.isPoint()) {
+            return this.#closestPoint(shape);
         }
 
         if (shape.isLine()) {
+            return this.#closestLine(shape);
         }
 
         if (shape.isRectangle()) {
+            return this.#closestRectangle(shape);
         }
 
         if (shape.isTriangle()) {
+            return this.#closestTriangle(shape);
         }
 
         if (shape.isCircle()) {
+            return this.#closestCircle(shape);
         }
 
         if (shape.isRay()) {
+            return this.#closestRay(shape);
+        }
+
+        unreachable();
+    }
+
+    overlaps(shape: Shape): boolean {
+        if (shape.isPoint()) {
+            return this.#overlapsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#overlapsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#overlapsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#overlapsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#overlapsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#overlapsRay(shape);
         }
 
         unreachable();
@@ -1587,21 +2121,27 @@ class Circle extends Shape {
 
     contains(shape: Shape): boolean {
         if (shape.isPoint()) {
+            return this.#containsPoint(shape);
         }
 
         if (shape.isLine()) {
+            return this.#containsLine(shape);
         }
 
         if (shape.isRectangle()) {
+            return this.#containsRectangle(shape);
         }
 
         if (shape.isTriangle()) {
+            return this.#containsTriangle(shape);
         }
 
         if (shape.isCircle()) {
+            return this.#containsCircle(shape);
         }
 
         if (shape.isRay()) {
+            return this.#containsRay(shape);
         }
 
         unreachable();
@@ -1612,21 +2152,27 @@ class Circle extends Shape {
 
     intersects(shape: Shape): Array<Vector2D> {
         if (shape.isPoint()) {
+            return this.#intersectsPoint(shape);
         }
 
         if (shape.isLine()) {
+            return this.#intersectsLine(shape);
         }
 
         if (shape.isRectangle()) {
+            return this.#intersectsRectangle(shape);
         }
 
         if (shape.isTriangle()) {
+            return this.#intersectsTriangle(shape);
         }
 
         if (shape.isCircle()) {
+            return this.#intersectsCircle(shape);
         }
 
         if (shape.isRay()) {
+            return this.#intersectsRay(shape);
         }
 
         unreachable();
@@ -1646,7 +2192,7 @@ class Circle extends Shape {
     }
 
     area(): number {
-        return Math.PI * this.radius ** 2;
+        return Math.PI * Math.pow(this.radius, 2);
     }
 
     perimeter(): number {
@@ -1659,23 +2205,300 @@ class Circle extends Shape {
 }
 
 class Triangle extends Shape {
-    overlaps(shape: Shape): boolean {
+    #closestPoint(shape: Point): Vector2D {
+        const line = new Line(this.position[0], this.position[1]);
+        const p0 = line.closest(shape);
+        const d0 = p0.subtractBy(shape.position).magnitudeSquared();
+
+        line.end = this.position[2];
+        const p1 = line.closest(shape);
+        const d1 = p1.subtractBy(shape.position).magnitudeSquared();
+
+        line.start = this.position[1];
+        const p2 = line.closest(shape);
+        const d2 = p2.subtractBy(shape.position).magnitudeSquared();
+
+        if (d0 <= d1 && d0 <= d2) {
+            return p0;
+        }
+
+        if (d1 <= d0 && d1 <= d2) {
+            return p1;
+        }
+
+        return p2;
+    }
+
+    // @ts-ignore
+    #closestLine(shape: Line): Vector2D {
+        unimplemented();
+    }
+
+    #closestRectangle(shape: Rectangle): Vector2D {
+        return shape.closest(this);
+    }
+
+    // @ts-ignore
+    #closestTriangle(shape: Triangle): Vector2D {
+        unimplemented();
+    }
+
+    // @ts-ignore
+    #closestCircle(shape: Circle): Vector2D {
+        unimplemented();
+    }
+
+    // @ts-ignore
+    #closestRay(shape: Ray): Vector2D {
+        unimplemented();
+    }
+
+    #overlapsPoint(shape: Point): boolean {
+        return this.contains(shape);
+    }
+
+    #overlapsLine(shape: Line): boolean {
+        return (
+            this.overlaps(new Point(shape.start)) ||
+            this.side(0).overlaps(shape) ||
+            this.side(1).overlaps(shape) ||
+            this.side(2).overlaps(shape)
+        );
+    }
+
+    #overlapsRectangle(shape: Rectangle): boolean {
+        return (
+            this.overlaps(shape.top()) ||
+            this.overlaps(shape.bottom()) ||
+            this.overlaps(shape.left()) ||
+            this.overlaps(shape.right()) ||
+            shape.contains(new Point(this.position[0]))
+        );
+    }
+
+    #overlapsTriangle(shape: Triangle): boolean {
+        return (
+            this.overlaps(shape.side(0)) ||
+            this.overlaps(shape.side(1)) ||
+            this.overlaps(shape.side(2)) ||
+            shape.overlaps(new Point(this.position[0]))
+        );
+    }
+
+    #overlapsCircle(shape: Circle): boolean {
+        return (
+            this.contains(new Point(shape.position)) ||
+            shape.position
+                .subtractBy(this.closest(new Point(shape.position)))
+                .magnitudeSquared() <= Math.pow(shape.radius, 2)
+        );
+    }
+
+    #overlapsRay(shape: Ray): boolean {
+        // A ray cannot overlap with a triangle and vice versa
+        return false;
+    }
+
+    #containsPoint(shape: Point): boolean {
+        /**  @see http://jsfiddle.net/PerroAZUL/zdaY8/1/ */
+
+        const A =
+            0.5 *
+            (this.position[1].y * -1 * this.position[2].x +
+                this.position[0].y *
+                    (this.position[1].x * -1 + this.position[2].x) +
+                this.position[0].x * (this.position[1].y - this.position[2].y) +
+                this.position[1].x * this.position[2].y);
+        const sign = A < 0 ? -1 : 1;
+        const s =
+            (this.position[0].y * this.position[2].x -
+                this.position[0].x * this.position[2].y +
+                (this.position[2].y - this.position[0].y) * shape.position.x +
+                (this.position[0].x - this.position[2].x) * shape.position.y) *
+            sign;
+        const v =
+            (this.position[0].x * this.position[1].y -
+                this.position[0].y * this.position[1].x +
+                (this.position[0].y - this.position[1].y) * shape.position.x +
+                (this.position[1].x - this.position[0].x) * shape.position.y) *
+            sign;
+
+        return s >= 0 && v >= 0 && s + v <= 2 * A * sign;
+    }
+
+    #containsLine(shape: Line): boolean {
+        return (
+            this.contains(new Point(shape.start)) &&
+            this.contains(new Point(shape.end))
+        );
+    }
+
+    #containsRectangle(shape: Rectangle): boolean {
+        return (
+            this.contains(new Point(shape.position)) &&
+            this.contains(new Point(shape.position.addBy(shape.dimensions))) &&
+            this.contains(
+                new Point(
+                    new Vector2D(
+                        shape.position.x + shape.dimensions.x,
+                        shape.position.y,
+                    ),
+                ),
+            ) &&
+            this.contains(
+                new Point(
+                    new Vector2D(
+                        shape.position.x,
+                        shape.position.y + shape.dimensions.y,
+                    ),
+                ),
+            )
+        );
+    }
+
+    #containsTriangle(shape: Triangle): boolean {
+        return (
+            this.contains(new Point(shape.position[0])) &&
+            this.contains(new Point(shape.position[1])) &&
+            this.contains(new Point(shape.position[2]))
+        );
+    }
+
+    #containsCircle(shape: Circle): boolean {
+        return (
+            this.contains(new Point(shape.position)) &&
+            shape.position
+                .subtractBy(this.closest(new Point(shape.position)))
+                .magnitudeSquared() >= Math.pow(shape.radius, 2)
+        );
+    }
+
+    #containsRay(shape: Ray): boolean {
+        // A triangle cannot contain a ray
+        return false;
+    }
+
+    #intersectsPoint(shape: Point): Array<Vector2D> {
+        for (let i = 0; i < this.sideCount(); ++i) {
+            if (this.side(i).contains(shape)) {
+                return [shape.position];
+            }
+        }
+
+        return [];
+    }
+
+    #intersectsLine(shape: Line): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < this.sideCount(); ++i) {
+            const v = this.side(i).intersects(shape);
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsRectangle(shape: Rectangle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsTriangle(shape: Triangle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < shape.sideCount(); ++i) {
+            const v = this.intersects(shape.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsCircle(shape: Circle): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < this.sideCount(); ++i) {
+            const v = shape.intersects(this.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    #intersectsRay(shape: Ray): Array<Vector2D> {
+        const intersections = [];
+
+        for (let i = 0; i < this.sideCount(); ++i) {
+            const v = shape.intersects(this.side(i));
+
+            intersections.push(...v);
+        }
+
+        return Vector2D.filterDuplicateVectors(intersections);
+    }
+
+    // @ts-ignore
+    closest(shape: Shape): Vector2D {
         if (shape.isPoint()) {
+            return this.#closestPoint(shape);
         }
 
         if (shape.isLine()) {
+            return this.#closestLine(shape);
         }
 
         if (shape.isRectangle()) {
+            return this.#closestRectangle(shape);
         }
 
         if (shape.isTriangle()) {
+            return this.#closestTriangle(shape);
         }
 
         if (shape.isCircle()) {
+            return this.#closestCircle(shape);
         }
 
         if (shape.isRay()) {
+            return this.#closestRay(shape);
+        }
+
+        unreachable();
+    }
+
+    overlaps(shape: Shape): boolean {
+        if (shape.isPoint()) {
+            return this.#overlapsPoint(shape);
+        }
+
+        if (shape.isLine()) {
+            return this.#overlapsLine(shape);
+        }
+
+        if (shape.isRectangle()) {
+            return this.#overlapsRectangle(shape);
+        }
+
+        if (shape.isTriangle()) {
+            return this.#overlapsTriangle(shape);
+        }
+
+        if (shape.isCircle()) {
+            return this.#overlapsCircle(shape);
+        }
+
+        if (shape.isRay()) {
+            return this.#overlapsRay(shape);
         }
 
         unreachable();
@@ -1686,21 +2509,27 @@ class Triangle extends Shape {
 
     contains(shape: Shape): boolean {
         if (shape.isPoint()) {
+            return this.#containsPoint(shape);
         }
 
         if (shape.isLine()) {
+            return this.#containsLine(shape);
         }
 
         if (shape.isRectangle()) {
+            return this.#containsRectangle(shape);
         }
 
         if (shape.isTriangle()) {
+            return this.#containsTriangle(shape);
         }
 
         if (shape.isCircle()) {
+            return this.#containsCircle(shape);
         }
 
         if (shape.isRay()) {
+            return this.#containsRay(shape);
         }
 
         unreachable();
@@ -1711,21 +2540,27 @@ class Triangle extends Shape {
 
     intersects(shape: Shape): Array<Vector2D> {
         if (shape.isPoint()) {
+            return this.#intersectsPoint(shape);
         }
 
         if (shape.isLine()) {
+            return this.#intersectsLine(shape);
         }
 
         if (shape.isRectangle()) {
+            return this.#intersectsRectangle(shape);
         }
 
         if (shape.isTriangle()) {
+            return this.#intersectsTriangle(shape);
         }
 
         if (shape.isCircle()) {
+            return this.#intersectsCircle(shape);
         }
 
         if (shape.isRay()) {
+            return this.#intersectsRay(shape);
         }
 
         unreachable();

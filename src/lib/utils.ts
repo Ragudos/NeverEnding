@@ -17,4 +17,11 @@ function minMax(first: number, second: number): [number, number] {
     return [Math.min(first, second), Math.max(first, second)];
 }
 
-export { genRandomId, minMax, random, randomItem };
+/**
+ * Clamps a number down to max and up to min
+ **/
+function clamp(orig: number, min: number, max: number): number {
+    return Math.min(Math.max(orig, min), max);
+}
+
+export { clamp, genRandomId, minMax, random, randomItem };
